@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
-import 'dart:convert';
+//import 'dart:convert';
 import 'package:http/http.dart' as http;
+//import 'package:movigestion_mobile_experimentos_version/core/app_constrants.dart';
+//import 'package:movigestion_mobile_experimentos_version/features/data/remote/auth_service.dart';
+import 'package:movigestion_mobile_experimentos_version/features/data/remote/profile_service.dart';
 import 'package:movigestion_mobile_experimentos_version/features/presentation/pages/businessman/profile/profile_screen.dart';
 import 'package:movigestion_mobile_experimentos_version/features/presentation/pages/businessman/reports/reports_screen.dart';
 import 'package:movigestion_mobile_experimentos_version/features/presentation/pages/businessman/shipments/shipments_screen.dart';
@@ -10,11 +13,13 @@ import 'package:movigestion_mobile_experimentos_version/features/presentation/pa
 class CarrierProfilesScreen extends StatefulWidget {
   final String name;
   final String lastName;
+  final int userId;
 
   const CarrierProfilesScreen({
     Key? key,
     required this.name,
     required this.lastName,
+    required this.userId,
   }) : super(key: key);
 
   @override
@@ -33,28 +38,27 @@ class _CarrierProfilesScreenState extends State<CarrierProfilesScreen> {
 
   Future<void> _fetchCarrierProfiles() async {
     try {
-      final response = await http.get(Uri.parse('https://app-241107014459.azurewebsites.net/api/profiles'));
-      if (response.statusCode == 200) {
-        List<dynamic> profiles = json.decode(response.body);
-        setState(() {
-          _carrierProfiles = profiles
-              .where((profile) => profile['type'] == 'Transportista')
-              .map((profile) => {
-            'id': profile['id'],
-            'name': profile['name'],
-            'lastName': profile['lastName'],
-            'email': profile['email'],
-          })
-              .toList();
-          _isLoading = false;
-        });
-      } else {
-        _showSnackbar('Error al cargar perfiles.');
-      }
+      final profileService = ProfileService();
+      final allProfiles = await profileService.getAllProfiles();
+      
+      setState(() {
+        _carrierProfiles = allProfiles
+            .where((profile) => profile.type == 'TRANSPORTISTA')
+            .map((profile) => {
+                  'id': profile.id,
+                  'name': profile.name,
+                  'lastName': profile.lastName,
+                  'email': profile.email,
+                })
+            .toList();
+        _isLoading = false;
+      });
     } catch (e) {
-      _showSnackbar('Error al obtener los perfiles.');
+      _showSnackbar('Error al cargar transportistas: ${e.toString()}');
+      setState(() => _isLoading = false);
     }
   }
+
 
   void _showSnackbar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -222,11 +226,11 @@ class _CarrierProfilesScreenState extends State<CarrierProfilesScreen> {
               ],
             ),
           ),
-          _buildDrawerItem(Icons.person, 'PERFIL', ProfileScreen(name: widget.name, lastName: widget.lastName)),
-          _buildDrawerItem(Icons.group, 'TRANSPORTISTAS', CarrierProfilesScreen(name: widget.name, lastName: widget.lastName)),
-          _buildDrawerItem(Icons.report, 'REPORTES', ReportsScreen(name: widget.name, lastName: widget.lastName)),
-          _buildDrawerItem(Icons.directions_car, 'VEHÍCULOS', VehiclesScreen(name: widget.name, lastName: widget.lastName)),
-          _buildDrawerItem(Icons.local_shipping, 'ENVIOS', ShipmentsScreen(name: widget.name, lastName: widget.lastName)),
+          _buildDrawerItem(Icons.person, 'PERFIL', ProfileScreen(name: widget.name, lastName: widget.lastName, userId: widget.userId)),
+          _buildDrawerItem(Icons.group, 'TRANSPORTISTAS', CarrierProfilesScreen(name: widget.name, lastName: widget.lastName, userId: widget.userId)),
+          _buildDrawerItem(Icons.report, 'REPORTES', ReportsScreen(name: widget.name, lastName: widget.lastName, userId: widget.userId)),
+          _buildDrawerItem(Icons.directions_car, 'VEHÍCULOS', VehiclesScreen(name: widget.name, lastName: widget.lastName, userId: widget.userId)),
+          _buildDrawerItem(Icons.local_shipping, 'ENVIOS', ShipmentsScreen(name: widget.name, lastName: widget.lastName, userId: widget.userId)),
           const SizedBox(height: 160),
           ListTile(
             leading: const Icon(Icons.logout, color: Colors.white),

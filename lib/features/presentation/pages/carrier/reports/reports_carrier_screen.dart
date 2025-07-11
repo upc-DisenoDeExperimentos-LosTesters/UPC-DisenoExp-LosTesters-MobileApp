@@ -10,11 +10,13 @@ import 'package:movigestion_mobile_experimentos_version/features/presentation/pa
 class ReportsCarrierScreen extends StatefulWidget {
   final String name;
   final String lastName;
+  final int userId;
 
   const ReportsCarrierScreen({
     Key? key,
     required this.name,
     required this.lastName,
+    required this.userId,
   }) : super(key: key);
 
   @override
@@ -114,6 +116,7 @@ class _ReportsCarrierScreenState extends State<ReportsCarrierScreen> with Single
         builder: (context) => NewReportScreen(
           name: widget.name,
           lastName: widget.lastName,
+          userId: widget.userId,
         ),
       ),
     );
@@ -227,7 +230,7 @@ class _ReportsCarrierScreenState extends State<ReportsCarrierScreen> with Single
             backgroundColor: const Color(0xFFEA8E00),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(15),
-              child: Image.network(
+              child: Image.asset(
                 'assets/images/bell.png',
                 fit: BoxFit.cover,
                 width: 40,
@@ -299,10 +302,10 @@ class _ReportsCarrierScreenState extends State<ReportsCarrierScreen> with Single
               ],
             ),
           ),
-          _buildDrawerItem(Icons.person, 'PERFIL', ProfileScreen2(name: widget.name, lastName: widget.lastName)),
-          _buildDrawerItem(Icons.report, 'REPORTES', ReportsCarrierScreen(name: widget.name, lastName: widget.lastName)),
-          _buildDrawerItem(Icons.directions_car, 'VEHICULOS', VehicleDetailCarrierScreenScreen(name: widget.name, lastName: widget.lastName)),
-          _buildDrawerItem(Icons.local_shipping, 'ENVIOS', ShipmentsScreen2(name: widget.name, lastName: widget.lastName)),
+          _buildDrawerItem(Icons.person, 'PERFIL', ProfileScreen2(name: widget.name, lastName: widget.lastName, userId: widget.userId)),
+          _buildDrawerItem(Icons.report, 'REPORTES', ReportsCarrierScreen(name: widget.name, lastName: widget.lastName, userId: widget.userId)),
+          _buildDrawerItem(Icons.directions_car, 'VEHICULOS', VehicleDetailCarrierScreenScreen(name: widget.name, lastName: widget.lastName, userId: widget.userId)),   
+                    _buildDrawerItem(Icons.local_shipping, 'ENVIOS', ShipmentsScreen2(name: widget.name, lastName: widget.lastName, userId: widget.userId)),       
           const SizedBox(height: 160),
           ListTile(
             leading: const Icon(Icons.logout, color: Colors.white),

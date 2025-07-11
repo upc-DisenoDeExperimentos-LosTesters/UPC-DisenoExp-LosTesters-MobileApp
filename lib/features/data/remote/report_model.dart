@@ -3,7 +3,7 @@ class ReportModel {
   final int? userId;
   final String type;
   final String description;
-  final String? driverName;
+  String? driverName;
   final DateTime? createdAt;
 
   ReportModel({
@@ -21,7 +21,7 @@ class ReportModel {
       userId: json['userId'],
       type: json['type'],
       description: json['description'],
-      driverName: json['driverName'],
+      //driverName: json['driverName'],
       createdAt: json['createdAt'] != null ? DateTime.parse(json['createdAt']) : null,
     );
   }

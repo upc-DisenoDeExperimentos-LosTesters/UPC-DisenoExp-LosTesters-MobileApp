@@ -10,11 +10,13 @@ import 'package:movigestion_mobile_experimentos_version/features/presentation/pa
 class ReportsScreen extends StatefulWidget {
   final String name;
   final String lastName;
+  final int userId;
 
   const ReportsScreen({
     Key? key,
     required this.name,
     required this.lastName,
+    required this.userId,
   }) : super(key: key);
 
   @override
@@ -24,6 +26,8 @@ class ReportsScreen extends StatefulWidget {
 class _ReportsScreenState extends State<ReportsScreen> {
   List<ReportModel> _reports = [];
   bool _isLoading = true;
+  final ReportService _reportService = ReportService(); // Instancia única
+
 
   @override
   void initState() {
@@ -33,8 +37,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
 
   Future<void> _fetchReports() async {
     try {
-      final reportService = ReportService();
-      final reports = await reportService.getAllReports();
+        final reports = await _reportService.getAllReports(); // Usamos la instancia
+
       setState(() {
         _reports = reports;
         _isLoading = false;
@@ -139,7 +143,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
                     style: const TextStyle(color: Colors.black),
                   ),
                   Text(
-                    'Conductor: ${report.driverName}',
+                    // Aquí se mostrará el driverName que hemos rellenado
+                    'Conductor: ${report.driverName ?? 'Cargando...'}' , // Si aún es null, mostrar "Cargando..." o "N/A"
                     style: const TextStyle(color: Colors.black54),
                   ),
                 ],
@@ -226,11 +231,11 @@ class _ReportsScreenState extends State<ReportsScreen> {
               ],
             ),
           ),
-          _buildDrawerItem(Icons.person, 'PERFIL', ProfileScreen(name: widget.name, lastName: widget.lastName)),
-          _buildDrawerItem(Icons.people, 'TRANSPORTISTAS', CarrierProfilesScreen(name: widget.name, lastName: widget.lastName)),
-          _buildDrawerItem(Icons.report, 'REPORTES', ReportsScreen(name: widget.name, lastName: widget.lastName)),
-          _buildDrawerItem(Icons.directions_car, 'VEHÍCULOS', VehiclesScreen(name: widget.name, lastName: widget.lastName)),
-          _buildDrawerItem(Icons.local_shipping, 'ENVIOS', ShipmentsScreen(name: widget.name, lastName: widget.lastName)),
+          _buildDrawerItem(Icons.person, 'PERFIL', ProfileScreen(name: widget.name, lastName: widget.lastName, userId: widget.userId)),
+          _buildDrawerItem(Icons.people, 'TRANSPORTISTAS', CarrierProfilesScreen(name: widget.name, lastName: widget.lastName, userId: widget.userId)),
+          _buildDrawerItem(Icons.report, 'REPORTES', ReportsScreen(name: widget.name, lastName: widget.lastName, userId: widget.userId)),
+          _buildDrawerItem(Icons.directions_car, 'VEHÍCULOS', VehiclesScreen(name: widget.name, lastName: widget.lastName, userId: widget.userId)),
+          _buildDrawerItem(Icons.local_shipping, 'ENVIOS', ShipmentsScreen(name: widget.name, lastName: widget.lastName, userId: widget.userId)),
           const SizedBox(height: 160),
           ListTile(
             leading: const Icon(Icons.logout, color: Colors.white),

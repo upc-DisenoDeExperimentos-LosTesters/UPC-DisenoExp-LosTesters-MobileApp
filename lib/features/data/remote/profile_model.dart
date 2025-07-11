@@ -5,7 +5,7 @@ class ProfileModel {
   final String email;
   final String type;
   final String password;
-  final String? token;
+  String? token;
 
   ProfileModel({
     required this.id,
@@ -18,6 +18,7 @@ class ProfileModel {
   });
 
   factory ProfileModel.fromJson(Map<String, dynamic> json) {
+    print('🔄 JSON recibido: $json');
     return ProfileModel(
       id: json['id'] as int? ?? 0,
       name: json['name'] as String? ?? '',

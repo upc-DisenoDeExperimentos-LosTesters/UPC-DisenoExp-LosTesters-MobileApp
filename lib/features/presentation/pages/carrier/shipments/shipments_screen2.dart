@@ -1,8 +1,13 @@
+// lib/features/presentation/pages/carrier/shipments/shipments_screen2.dart
 import 'package:flutter/material.dart';
-import 'dart:convert';
-import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 
+// Importar los servicios y modelos necesarios
+import 'package:movigestion_mobile_experimentos_version/features/data/remote/auth_service.dart'; // Para obtener el token
+import 'package:movigestion_mobile_experimentos_version/features/data/remote/shipment_service.dart'; // Tu servicio de envíos
+import 'package:movigestion_mobile_experimentos_version/features/data/remote/shipment_model.dart'; // Tu modelo de envío
+
+// Tus otras pantallas de navegación
 import 'package:movigestion_mobile_experimentos_version/features/presentation/pages/carrier/reports/reports_carrier_screen.dart';
 import 'package:movigestion_mobile_experimentos_version/features/presentation/pages/carrier/vehicle/vehicle_detail_carrier_screen.dart';
 import 'package:movigestion_mobile_experimentos_version/features/presentation/pages/carrier/profile/profile_screen2.dart';
@@ -11,11 +16,13 @@ import 'package:movigestion_mobile_experimentos_version/features/presentation/pa
 class ShipmentsScreen2 extends StatefulWidget {
   final String name;
   final String lastName;
+  final int userId; // ¡Ahora es requerido!
 
   const ShipmentsScreen2({
     Key? key,
     required this.name,
     required this.lastName,
+    required this.userId, // Hacer el userId requerido
   }) : super(key: key);
 
   @override
@@ -23,10 +30,12 @@ class ShipmentsScreen2 extends StatefulWidget {
 }
 
 class _ShipmentsScreen2State extends State<ShipmentsScreen2> with SingleTickerProviderStateMixin {
-  List<Map<String, dynamic>> _shipments = [];
+  List<ShipmentModel> _shipments = []; // Usamos ShipmentModel directamente
   bool _isLoading = true;
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
+
+  final ShipmentService _shipmentService = ShipmentService(); // Instancia del servicio
 
   @override
   void initState() {
@@ -39,80 +48,85 @@ class _ShipmentsScreen2State extends State<ShipmentsScreen2> with SingleTickerPr
       parent: _animationController,
       curve: Curves.easeInOut,
     );
-    _fetchShipments();
+    _fetchShipments(); // Obtiene los envíos usando el servicio
   }
 
+  // **** MODIFICADO: AHORA USA EL ENDPOINT GENERAL Y FILTRA LOCALMENTE ****
   Future<void> _fetchShipments() async {
+    setState(() {
+      _isLoading = true;
+    });
     try {
-      final profilesResponse = await http.get(Uri.parse('https://app-241107014459.azurewebsites.net/api/profiles'));
+      // 1. Obtener TODOS los envíos utilizando el método getAllShipments()
+      // de tu ShipmentService, que apunta al endpoint general.
+      final List<ShipmentModel> allFetchedShipments = await _shipmentService.getAllShipments();
 
-      if (profilesResponse.statusCode == 200) {
-        List<dynamic> profiles = json.decode(profilesResponse.body);
-        bool isDriverExists = profiles.any((profile) => profile['name'] == widget.name);
+      // 2. Filtrar esta lista localmente para mostrar solo los envíos
+      // cuyo 'transporterId' coincida con el 'userId' del transportista logeado.
+      final List<ShipmentModel> filteredShipments = allFetchedShipments.where((shipment) {
+        return shipment.transporterId == widget.userId;
+      }).toList();
 
-        if (isDriverExists) {
-          final shipmentsResponse = await http.get(Uri.parse('https://app-241107014459.azurewebsites.net/api/shipments'));
+      setState(() {
+        _shipments = filteredShipments; // Actualiza la lista de envíos con los filtrados
+        _isLoading = false;
+      });
 
-          if (shipmentsResponse.statusCode == 200) {
-            List<dynamic> data = json.decode(shipmentsResponse.body);
-            setState(() {
-              _shipments = data
-                  .where((shipment) => shipment['driverName'] == widget.name)
-                  .map((shipment) => {
-                'id': shipment['id'],
-                'destiny': shipment['destiny'],
-                'description': shipment['description'],
-                'createdAt': DateTime.parse(shipment['createdAt']),
-              })
-                  .toList();
-              _isLoading = false;
-            });
-
-
-            _animationController.forward();
-          } else {
-            setState(() {
-              _isLoading = false;
-            });
-          }
-        } else {
-          setState(() {
-            _isLoading = false;
-          });
-        }
-      } else {
-        setState(() {
-          _isLoading = false;
-        });
-      }
+      _animationController.forward();
     } catch (e) {
       setState(() {
         _isLoading = false;
       });
+      // Mostrar un mensaje de error si algo sale mal
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error al cargar envíos: $e'),
+          backgroundColor: Colors.redAccent,
+          duration: const Duration(seconds: 3),
+        ),
+      );
     }
   }
 
   Future<void> _markAsDelivered(int index) async {
     final shipment = _shipments[index];
-    final id = shipment['id'];
+    final id = shipment.id; // Acceder al ID del ShipmentModel
+
+    // Asegúrate de que el ID no sea nulo antes de pasarlo al servicio
+  if (id == null) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text('Error: ID de envío no disponible para actualizar.'),
+        backgroundColor: Colors.red,
+        duration: const Duration(seconds: 2),
+      ),
+    );
+    return; // Salir de la función si el ID es nulo
+  }
 
     try {
-      final response = await http.put(
-        Uri.parse('https://app-241107014459.azurewebsites.net/api/shipments/$id/status'),
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: json.encode({'status': 'Envio Entregado'}),
-      );
+          final success = await _shipmentService.updateShipmentStatus(id!, 'Envio Entregado');
 
-      if (response.statusCode == 204) {
+      if (success) {
         setState(() {
-          _shipments[index]['status'] = 'Envio Entregado';
+          // Actualiza el estado en el modelo local para refrescar la UI
+          _shipments[index] = ShipmentModel(
+            id: shipment.id,
+            userId: shipment.userId,
+            destiny: shipment.destiny,
+            description: shipment.description,
+            createdAt: shipment.createdAt,
+            status: 'Envio Entregado', // Cambiamos el estado
+            vehicleId: shipment.vehicleId,
+            vehicleModel: shipment.vehicleModel,
+            vehiclePlate: shipment.vehiclePlate,
+            transporterId: shipment.transporterId,
+          );
         });
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text('Confirmación entregada al gerente.'),
+            content: const Text('Confirmación de entrega enviada.'),
             backgroundColor: Colors.green,
             duration: const Duration(seconds: 2),
           ),
@@ -120,7 +134,7 @@ class _ShipmentsScreen2State extends State<ShipmentsScreen2> with SingleTickerPr
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error al marcar como entregado. Código: ${response.statusCode}'),
+            content: const Text('Error al marcar como entregado.'),
             backgroundColor: Colors.red,
             duration: const Duration(seconds: 2),
           ),
@@ -129,14 +143,13 @@ class _ShipmentsScreen2State extends State<ShipmentsScreen2> with SingleTickerPr
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Ocurrió un error: $e'),
+          content: Text('Ocurrió un error al marcar como entregado: $e'),
           backgroundColor: Colors.red,
           duration: const Duration(seconds: 2),
         ),
       );
     }
   }
-
 
   @override
   void dispose() {
@@ -148,12 +161,11 @@ class _ShipmentsScreen2State extends State<ShipmentsScreen2> with SingleTickerPr
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-
         backgroundColor: const Color(0xFF2C2F38),
-        title: Row(
+        title: const Row(
           children: [
             Icon(Icons.local_shipping, color: Colors.amber),
-            const SizedBox(width: 10),
+            SizedBox(width: 10),
             Text(
               'Envios',
               style: TextStyle(color: Colors.grey, fontSize: 22, fontWeight: FontWeight.w600),
@@ -165,46 +177,60 @@ class _ShipmentsScreen2State extends State<ShipmentsScreen2> with SingleTickerPr
       drawer: _buildDrawer(),
       body: _isLoading
           ? const Center(
-        child: CircularProgressIndicator(
-          color: Colors.amber,
-          strokeWidth: 4,
-        ),
-      )
+              child: CircularProgressIndicator(
+                color: Colors.amber,
+                strokeWidth: 4,
+              ),
+            )
           : _shipments.isEmpty
-          ? FadeTransition(
-        opacity: _fadeAnimation,
-        child: const Center(
-          child: Text(
-            'No hay envíos disponibles',
-            style: TextStyle(
-              color: Colors.white70,
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ),
-      )
-          : FadeTransition(
-        opacity: _fadeAnimation,
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: ListView.builder(
-            itemCount: _shipments.length,
-            itemBuilder: (context, index) {
-              return _buildShipmentCard(
-                _shipments[index]['destiny'],
-                _shipments[index]['description'],
-                _shipments[index]['createdAt'],
-                index,
-              );
-            },
-          ),
-        ),
-      ),
+              ? FadeTransition(
+                  opacity: _fadeAnimation,
+                  child: Center(
+                    child: Text(
+                      'No hay envíos asignados a ${widget.name}.',
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                )
+              : FadeTransition(
+                  opacity: _fadeAnimation,
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: ListView.builder(
+                      itemCount: _shipments.length,
+                      itemBuilder: (context, index) {
+                        final shipment = _shipments[index];
+                        return _buildShipmentCard(
+                          shipment.destiny,
+                          shipment.description,
+                          shipment.createdAt,
+                          shipment.status, // Pasa el estado
+                          shipment.vehicleModel, // Pasa el modelo
+                          shipment.vehiclePlate, // Pasa la placa
+                          index,
+                        );
+                      },
+                    ),
+                  ),
+                ),
     );
   }
 
-  Widget _buildShipmentCard(String destiny, String description, DateTime createdAt, int index) {
+  Widget _buildShipmentCard(
+    String destiny,
+    String description,
+    DateTime? createdAt,
+    String status,
+    String? vehicleModel,
+    String? vehiclePlate,
+    int index,
+  ) {
+    final bool isDelivered = status == 'Envio Entregado';
+
     return Card(
       elevation: 8,
       shape: RoundedRectangleBorder(
@@ -229,8 +255,7 @@ class _ShipmentsScreen2State extends State<ShipmentsScreen2> with SingleTickerPr
                     ),
                   ),
                   padding: const EdgeInsets.all(10),
-                  child:
-                  CircleAvatar(
+                  child: CircleAvatar(
                     radius: 30,
                     backgroundColor: const Color(0xFFEA8E00),
                     child: ClipRRect(
@@ -264,39 +289,70 @@ class _ShipmentsScreen2State extends State<ShipmentsScreen2> with SingleTickerPr
                         ),
                       ),
                       Text(
-                        'Fecha: ${DateFormat.yMMMd().format(createdAt)}',
-                        style: const TextStyle(
-                          color: Colors.amber,
+  'Fecha: ${createdAt != null ? DateFormat.yMMMd().format(createdAt) : 'Fecha desconocida'}',
+  style: const TextStyle(
+    color: Colors.amber,
+    fontSize: 14,
+    fontWeight: FontWeight.w500,
+  ),
+),
+                      Text(
+                        'Estado: $status',
+                        style: TextStyle(
+                          color: isDelivered ? Colors.green.shade700 : Colors.orange.shade700,
                           fontSize: 14,
-                          fontWeight: FontWeight.w500,
+                          fontWeight: FontWeight.bold,
                         ),
                       ),
+                      if (vehicleModel != null && vehiclePlate != null && vehicleModel.isNotEmpty && vehiclePlate.isNotEmpty)
+                        Text(
+                          'Vehículo: $vehicleModel ($vehiclePlate)',
+                          style: const TextStyle(
+                            color: Colors.black54,
+                            fontSize: 13,
+                          ),
+                        ),
                     ],
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 10),
-            ElevatedButton(
-              onPressed: () => _markAsDelivered(index),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.green,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
+            if (!isDelivered)
+              ElevatedButton(
+                onPressed: () => _markAsDelivered(index),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                child: const Text(
+                  'Confirmar Entrega ',
+                  style: TextStyle(color: Colors.white),
                 ),
               ),
-              child: const Text(
-                'Confirmar Entrega ',
-                style: TextStyle(color: Colors.white),
+            if (isDelivered)
+              Container(
+                alignment: Alignment.centerLeft,
+                padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 12.0),
+                decoration: BoxDecoration(
+                  color: Colors.green.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Text(
+                  '¡Envío Entregado!',
+                  style: TextStyle(
+                    color: Colors.green,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
               ),
-            ),
           ],
         ),
       ),
     );
   }
-
-
 
   Widget _buildDrawer() {
     return Drawer(
@@ -305,7 +361,6 @@ class _ShipmentsScreen2State extends State<ShipmentsScreen2> with SingleTickerPr
         padding: EdgeInsets.zero,
         children: [
           DrawerHeader(
-
             child: Column(
               children: [
                 Image.asset(
@@ -315,20 +370,29 @@ class _ShipmentsScreen2State extends State<ShipmentsScreen2> with SingleTickerPr
                 const SizedBox(height: 10),
                 Text(
                   '${widget.name} ${widget.lastName} - Transportista',
-                  style: const TextStyle(color: Colors.grey,  fontSize: 16),
+                  style: const TextStyle(color: Colors.grey, fontSize: 16),
                 ),
               ],
             ),
           ),
-          _buildDrawerItem(Icons.person, 'PERFIL', ProfileScreen2(name: widget.name, lastName: widget.lastName)),
-          _buildDrawerItem(Icons.report, 'REPORTES', ReportsCarrierScreen(name: widget.name, lastName: widget.lastName)),
-          _buildDrawerItem(Icons.directions_car, 'VEHICULOS', VehicleDetailCarrierScreenScreen(name: widget.name, lastName: widget.lastName)),
-          _buildDrawerItem(Icons.local_shipping, 'ENVIOS', ShipmentsScreen2(name: widget.name, lastName: widget.lastName)),
+          _buildDrawerItem(Icons.person, 'PERFIL', ProfileScreen2(name: widget.name, lastName: widget.lastName, userId: widget.userId)),
+          _buildDrawerItem(Icons.report, 'REPORTES', ReportsCarrierScreen(name: widget.name, lastName: widget.lastName, userId: widget.userId)),
+          _buildDrawerItem(Icons.directions_car, 'VEHICULOS', VehicleDetailCarrierScreenScreen(name: widget.name, lastName: widget.lastName, userId: widget.userId)),
+          _buildDrawerItem(
+            Icons.local_shipping,
+            'ENVIOS',
+            ShipmentsScreen2(
+              name: widget.name,
+              lastName: widget.lastName,
+              userId: widget.userId,
+            ),
+          ),
           const SizedBox(height: 160),
           ListTile(
             leading: const Icon(Icons.logout, color: Colors.white),
             title: const Text('CERRAR SESIÓN', style: TextStyle(color: Colors.white)),
             onTap: () {
+              AuthService.logout();
               Navigator.pushAndRemoveUntil(
                 context,
                 MaterialPageRoute(
@@ -341,7 +405,7 @@ class _ShipmentsScreen2State extends State<ShipmentsScreen2> with SingleTickerPr
                     },
                   ),
                 ),
-                    (Route<dynamic> route) => false,
+                (Route<dynamic> route) => false,
               );
             },
           ),

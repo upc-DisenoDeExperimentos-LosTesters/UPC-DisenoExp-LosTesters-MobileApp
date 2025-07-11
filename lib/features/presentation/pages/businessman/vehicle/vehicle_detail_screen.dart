@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:io';
 import 'package:intl/intl.dart';
+import 'package:movigestion_mobile_experimentos_version/features/data/remote/vehicle_Assignment_model.dart';
 import 'package:movigestion_mobile_experimentos_version/features/data/remote/vehicle_model.dart';
 import 'package:movigestion_mobile_experimentos_version/features/data/remote/vehicle_service.dart';
 import 'package:movigestion_mobile_experimentos_version/features/presentation/pages/businessman/carrier_profile/carrier_profiles.dart';
@@ -16,12 +17,15 @@ class VehicleDetailScreen extends StatefulWidget {
   final VehicleModel vehicle;
   final String name;
   final String lastName;
+  final int userId;
+  
 
   const VehicleDetailScreen({
     Key? key,
     required this.vehicle,
     required this.name,
     required this.lastName,
+    required this.userId,
   }) : super(key: key);
 
   @override
@@ -43,6 +47,9 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> with SingleTi
   late TextEditingController lastTechnicalInspectionDateController;  // No necesitamos _selectedImage ya que está comentada su funcionalidad
   // No necesitamos el _animationController ya que está comentada su funcionalidad
   final VehicleService vehicleService = VehicleService();
+  Future<List<VehicleAssignment>> _assignmentsFuture= Future.value([]);
+  int? _currentTransporterId;
+  bool _isAssigned = false;
   @override
   void initState() {
     super.initState();
@@ -54,19 +61,26 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> with SingleTi
     driverNameController = TextEditingController(text: "");
     colorController = TextEditingController(text: "");
     lastTechnicalInspectionDateController = TextEditingController(text: DateFormat('yyyy-MM-dd').format(DateTime.now()));
-
-    /*    // No necesitamos inicializar _animationController ya que fue eliminado*/
+    _assignmentsFuture = _loadAssignments();
   }
 
-  /*Future<void> _pickImage() async {
-    final XFile? pickedFile = await _picker.pickImage(source: ImageSource.gallery);
-    if (pickedFile != null) {
+
+  Future<List<VehicleAssignment>> _loadAssignments() async {
+    final assignments = await VehicleService().getAssignments();
+    // Filtra asignaciones activas para este vehículo
+    final activeAssignments = assignments.where((a) => 
+      a.vehicleId == widget.vehicle.id && 
+      (a.endDate == null || a.endDate!.isAfter(DateTime.now()))
+    ).toList();
+    
+    if (activeAssignments.isNotEmpty) {
       setState(() {
-        _selectedImage = File(pickedFile.path);
+        _currentTransporterId = activeAssignments.first.transporterId;
+        _isAssigned = true;
       });
-      _animationController.forward();
     }
-  }*/
+    return activeAssignments;
+  }
 
   Future<void> _updateVehicle() async {
   try {
@@ -88,6 +102,7 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> with SingleTi
           pageBuilder: (_, __, ___) => VehiclesScreen(
             name: widget.name,
             lastName: widget.lastName,
+            userId: widget.userId,
           ),
           transitionsBuilder: (context, animation, secondaryAnimation, child) {
             return FadeTransition(
@@ -197,11 +212,67 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> with SingleTi
                 ),
               ),
             ),
+            _buildDriverInfo()
           ],
         ),
       ),
     );
   }
+
+  Widget _buildDriverInfo() {
+  return FutureBuilder<List<VehicleAssignment>>(
+    future: _assignmentsFuture,
+    builder: (context, snapshot) {
+      if (snapshot.connectionState == ConnectionState.waiting) {
+        return const CircularProgressIndicator();
+      }
+      
+      if (snapshot.hasError || !snapshot.hasData || snapshot.data!.isEmpty) {
+        return _buildSectionContainer(
+          Text(
+            'No hay conductor asignado actualmente',
+            style: TextStyle(color: Colors.grey),
+          ),
+        );
+      }
+
+      final assignment = snapshot.data!.first;
+      return _buildSectionContainer(
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Conductor asignado',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ),
+            ),
+            SizedBox(height: 8),
+            Text(
+              'ID Transportista: ${assignment.transporterId}',
+              style: TextStyle(color: Colors.white70),
+            ),
+            Text(
+              'Ruta: ${assignment.route}',
+              style: TextStyle(color: Colors.white70),
+            ),
+            Text(
+              'Desde: ${DateFormat('yyyy-MM-dd').format(assignment.startDate)}',
+              style: TextStyle(color: Colors.white70),
+            ),
+            if (assignment.endDate != null)
+              Text(
+                'Hasta: ${DateFormat('yyyy-MM-dd').format(assignment.endDate!)}',
+                style: TextStyle(color: Colors.white70),
+              ),
+          ],
+        ),
+      );
+    },
+  );
+}
 
   Widget _buildVehicleImage(File image) {
     return ClipRRect(
@@ -407,12 +478,12 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> with SingleTi
               ],
             ),
           ),
-          _buildDrawerItem(Icons.person, 'PERFIL', ProfileScreen(name: widget.name, lastName: widget.lastName)),
+          _buildDrawerItem(Icons.person, 'PERFIL', ProfileScreen(name: widget.name, lastName: widget.lastName, userId: widget.userId)),
           _buildDrawerItem(Icons.people, 'TRANSPORTISTAS',
-              CarrierProfilesScreen(name: widget.name, lastName: widget.lastName)),
-          _buildDrawerItem(Icons.report, 'REPORTES', ReportsScreen(name: widget.name, lastName: widget.lastName)),
-          _buildDrawerItem(Icons.directions_car, 'VEHICULOS', VehiclesScreen(name: widget.name, lastName: widget.lastName)),
-          _buildDrawerItem(Icons.local_shipping, 'ENVIOS', ShipmentsScreen(name: widget.name, lastName: widget.lastName)),
+              CarrierProfilesScreen(name: widget.name, lastName: widget.lastName, userId: widget.userId)),
+          _buildDrawerItem(Icons.report, 'REPORTES', ReportsScreen(name: widget.name, lastName: widget.lastName, userId: widget.userId)),
+          _buildDrawerItem(Icons.directions_car, 'VEHICULOS', VehiclesScreen(name: widget.name, lastName: widget.lastName, userId: widget.userId)),
+          _buildDrawerItem(Icons.local_shipping, 'ENVIOS', ShipmentsScreen(name: widget.name, lastName: widget.lastName, userId: widget.userId)),
           const SizedBox(height: 160),
           ListTile(
             leading: const Icon(Icons.logout, color: Colors.white),

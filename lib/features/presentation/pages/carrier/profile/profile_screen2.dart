@@ -10,11 +10,13 @@ import 'package:movigestion_mobile_experimentos_version/features/presentation/pa
 class ProfileScreen2 extends StatefulWidget {
   final String name;
   final String lastName;
+  final int userId;
 
   const ProfileScreen2({
     Key? key,
     required this.name,
     required this.lastName,
+    required this.userId,
   }) : super(key: key);
 
   @override
@@ -158,6 +160,7 @@ class _ProfileScreen2State extends State<ProfileScreen2> {
                         builder: (context) => ProfileScreen2(
                           name: nameController.text,
                           lastName: lastNameController.text,
+                          userId: widget.userId,
                         ),
                       ),
                     );
@@ -323,10 +326,10 @@ class _ProfileScreen2State extends State<ProfileScreen2> {
               ],
             ),
           ),
-          _buildDrawerItem(Icons.person, 'PERFIL', ProfileScreen2(name: widget.name, lastName: widget.lastName)),
-          _buildDrawerItem(Icons.report, 'REPORTES', ReportsCarrierScreen(name: widget.name, lastName: widget.lastName)),
-          _buildDrawerItem(Icons.directions_car, 'VEHICULOS', VehicleDetailCarrierScreenScreen(name: widget.name, lastName: widget.lastName)),
-          _buildDrawerItem(Icons.local_shipping, 'ENVIOS', ShipmentsScreen2(name: widget.name, lastName: widget.lastName)),
+          _buildDrawerItem(Icons.person, 'PERFIL', ProfileScreen2(name: widget.name, lastName: widget.lastName, userId: widget.userId)),
+          _buildDrawerItem(Icons.report, 'REPORTES', ReportsCarrierScreen(name: widget.name, lastName: widget.lastName, userId: widget.userId)),
+          _buildDrawerItem(Icons.directions_car, 'VEHICULOS', VehicleDetailCarrierScreenScreen(name: widget.name, lastName: widget.lastName, userId: widget.userId)),
+          _buildDrawerItem(Icons.local_shipping, 'ENVIOS', ShipmentsScreen2(name: widget.name, lastName: widget.lastName, userId: widget.userId)),
           
           const SizedBox(height: 160),
           ListTile(

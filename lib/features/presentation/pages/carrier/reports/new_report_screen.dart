@@ -13,11 +13,13 @@ import 'package:movigestion_mobile_experimentos_version/features/presentation/pa
 class NewReportScreen extends StatefulWidget {
   final String name;
   final String lastName;
+  final int userId;
 
   const NewReportScreen({
     Key? key,
     required this.name,
     required this.lastName,
+    required this.userId,
   }) : super(key: key);
 
   @override
@@ -204,7 +206,8 @@ class _NewReportScreenState extends State<NewReportScreen> with SingleTickerProv
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => ProfileScreen2(name: widget.name, lastName: widget.lastName),
+                builder: (context) => ProfileScreen2(name: widget.name, lastName: widget.lastName, userId: widget.userId, 
+                ),
               ),
             );
           }),
@@ -212,7 +215,7 @@ class _NewReportScreenState extends State<NewReportScreen> with SingleTickerProv
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => ReportsCarrierScreen(name: widget.name, lastName: widget.lastName),
+                builder: (context) => ReportsCarrierScreen(name: widget.name, lastName: widget.lastName, userId: widget.userId),
               ),
             );
           }),
@@ -220,7 +223,7 @@ class _NewReportScreenState extends State<NewReportScreen> with SingleTickerProv
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => VehicleDetailCarrierScreenScreen(name: widget.name, lastName: widget.lastName),
+                builder: (context) => VehicleDetailCarrierScreenScreen(name: widget.name, lastName: widget.lastName, userId: widget.userId),
               ),
             );
           }),
@@ -228,7 +231,7 @@ class _NewReportScreenState extends State<NewReportScreen> with SingleTickerProv
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => ShipmentsScreen2(name: widget.name, lastName: widget.lastName),
+                builder: (context) => ShipmentsScreen2(name: widget.name, lastName: widget.lastName, userId: widget.userId),
               ),
             );
           }),

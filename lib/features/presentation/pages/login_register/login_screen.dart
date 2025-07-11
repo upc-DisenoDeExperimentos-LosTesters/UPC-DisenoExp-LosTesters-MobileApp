@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 //import 'package:movigestion_mobile_experimentos_version/core/app_constrants.dart';
 import 'package:movigestion_mobile_experimentos_version/features/data/remote/auth_service.dart';
 import 'package:movigestion_mobile_experimentos_version/features/data/remote/profile_model.dart';
+import 'package:movigestion_mobile_experimentos_version/features/presentation/pages/businessman/profile/profile_screen.dart';
 //import 'package:movigestion_mobile_experimentos_version/features/data/remote/profile_service.dart';
 import 'package:movigestion_mobile_experimentos_version/features/presentation/pages/carrier/profile/profile_screen2.dart';
 //import 'package:movigestion_mobile_experimentos_version/features/presentation/pages/login_register/register_screen.dart';
@@ -58,18 +59,21 @@ class _LoginScreenState extends State<LoginScreen> {
 }
 
   void _navigateBasedOnRole(ProfileModel profile) {
+    print('DEBUG: Profile ID for logged in user: ${profile.id}'); // <-- ¡Añade esta línea!
+    print('DEBUG: Profile name: ${profile.name}');
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(
-        builder: (_) => profile.type == 'Transportista'
+        builder: (_) => profile.type == 'TRANSPORTISTA'
             ? ProfileScreen2(
                 name: profile.name,
                 lastName: profile.lastName,
+                userId: profile.id,
               )
-            : Scaffold( // Pantalla alternativa para otros roles
-                body: Center(
-                  child: Text('Bienvenido ${profile.name}'),
-                ),
+            : ProfileScreen( // Pantalla alternativa para otros roles
+                name: profile.name,
+                lastName: profile.lastName,
+                userId: profile.id,
               ),
       ),
     );

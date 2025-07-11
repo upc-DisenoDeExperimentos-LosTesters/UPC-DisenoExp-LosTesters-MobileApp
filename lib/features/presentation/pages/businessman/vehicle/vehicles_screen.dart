@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:movigestion_mobile_experimentos_version/features/data/remote/auth_service.dart';
 import 'package:movigestion_mobile_experimentos_version/features/data/remote/vehicle_model.dart';
 import 'package:movigestion_mobile_experimentos_version/features/data/remote/vehicle_service.dart';
 import 'package:movigestion_mobile_experimentos_version/features/presentation/pages/businessman/carrier_profile/carrier_profiles.dart';
@@ -6,17 +7,20 @@ import 'package:movigestion_mobile_experimentos_version/features/presentation/pa
 import 'package:movigestion_mobile_experimentos_version/features/presentation/pages/businessman/reports/reports_screen.dart';
 import 'package:movigestion_mobile_experimentos_version/features/presentation/pages/businessman/shipments/shipments_screen.dart';
 import 'package:movigestion_mobile_experimentos_version/features/presentation/pages/businessman/vehicle/assign_vehicle_screen.dart';
+import 'package:movigestion_mobile_experimentos_version/features/presentation/pages/businessman/vehicle/create_vehicle_screen.dart';
 import 'package:movigestion_mobile_experimentos_version/features/presentation/pages/businessman/vehicle/vehicle_detail_screen.dart';
 import 'package:movigestion_mobile_experimentos_version/features/presentation/pages/login_register/login_screen.dart';
 
 class VehiclesScreen extends StatefulWidget {
   final String name;
   final String lastName;
+  final int userId;
 
   const VehiclesScreen({
     Key? key,
     required this.name,
     required this.lastName,
+    required this.userId,
   }) : super(key: key);
 
   @override
@@ -33,24 +37,48 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
     _fetchVehicles();
   }
 
-  Future<void> _fetchVehicles() async {
-    try {
-      final fetchedVehicles = await vehicleService.getAllVehicles();
-      setState(() {
-        vehicles = fetchedVehicles;
-      });
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Error al cargar vehículos',
-            style: TextStyle(color: Colors.white),
-          ),
-          backgroundColor: Colors.red,
+  void _navigateToCreateVehicle() async {
+    final result = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => CreateVehicleScreen(
+          ownerId: AuthService.currentUser?.id ?? 0,
         ),
-      );
+      ),
+    );
+    
+    if (result == true) {
+      _fetchVehicles(); // Refrescar la lista si se creó un vehículo
     }
   }
+
+  Future<void> _fetchVehicles() async {
+  try {
+    // Obtener todos los vehículos
+    final allVehicles = await vehicleService.getAllVehicles();
+    
+    // Filtrar vehículos por idTransportista (usando el ID del usuario actual)
+    final currentUserId = AuthService.currentUser?.id ?? 0;
+    final filteredVehicles = allVehicles.where((vehicle) => vehicle.idPropietario == currentUserId).toList();
+    
+    setState(() {
+      vehicles = filteredVehicles;
+    });
+    
+    print('🚗 Vehículos filtrados para transportista $currentUserId: ${vehicles.length}');
+  } catch (e) {
+    print('❌ Error al cargar vehículos: $e');
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          'Error al cargar vehículos: ${e.toString()}',
+          style: TextStyle(color: Colors.white),
+        ),
+        backgroundColor: Colors.red,
+      ),
+    );
+  }
+}
 
   void _addVehicle(Map<String, String> newVehicle) {
     setState(() {
@@ -114,33 +142,18 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
                   ),
                   const SizedBox(height: 20),
                   ElevatedButton(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => AssignVehicleScreen(
-                            onVehicleAdded: _addVehicle,
-                            name: widget.name,
-                            lastName: widget.lastName,
-                          ),
-                        ),
-                      );
-                    },
+                    onPressed: _navigateToCreateVehicle, // Usa el método ya existente
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFFFFA000),
                       minimumSize: const Size(double.infinity, 50),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(30),
-                      ),
-                      elevation: 5,
-                    ),
+                    ),),
                     child: const Text(
-                      'Asignar nuevo Vehículo',
-                      style: TextStyle(
-                        color: Colors.black,
-                      ),
+                      'Crear nuevo Vehículo', // Cambia el texto
+                      style: TextStyle(color: Colors.black),
                     ),
-                  ),
+                    ),
                 ],
               ),
             ),
@@ -151,66 +164,85 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
   }
 
   Widget _buildVehicleCard(VehicleModel vehicle) {
-    return Card(
-      elevation: 5,
-      margin: const EdgeInsets.symmetric(vertical: 10.0),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => VehicleDetailScreen(
-                vehicle: vehicle,
-                name: widget.name,
-                lastName: widget.lastName,
-              ),
+  return Card(
+    elevation: 5,
+    margin: const EdgeInsets.symmetric(vertical: 10.0),
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(12),
+    ),
+    child: InkWell(
+      borderRadius: BorderRadius.circular(12),
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => VehicleDetailScreen(
+              vehicle: vehicle,
+              name: widget.name,
+              lastName: widget.lastName,
+              userId: widget.userId, // Pasa el ID del usuario
             ),
-          );
-        },
-        child: Padding(
-          padding: const EdgeInsets.all(12.0),
-          child: Row(
-            children: [
-              /*ClipRRect(
-                borderRadius: BorderRadius.circular(8.0),
-                child: vehicle.vehicleImage.isNotEmpty &&
-                    Uri.tryParse(vehicle.vehicleImage)?.hasAbsolutePath == true
-                    ? Image.network(
-                  vehicle.vehicleImage,
-                  width: 60,
-                  height: 60,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) => const Icon(Icons.broken_image, size: 60),
-                )
-                    : const Icon(Icons.directions_car, size: 60, color: Colors.grey),
-              ),*/
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Modelo: ${vehicle.model}',
-                      style: const TextStyle( fontSize: 16),
-                      overflow: TextOverflow.ellipsis,
+          ),
+        );
+      },
+      child: Padding(
+        padding: const EdgeInsets.all(12.0),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Modelo: ${vehicle.model}',
+                        style: const TextStyle(fontSize: 16),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      Text(
+                        'Placa: ${vehicle.licensePlate}',
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                const Icon(Icons.arrow_forward_ios, color: Colors.grey, size: 16),
+              ],
+            ),
+            const SizedBox(height: 10),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => AssignVehicleScreen(
+                      vehicleId: vehicle.id, // Pasa el ID del vehículo
+                      name: widget.name,
+                      lastName: widget.lastName,
                     ),
-                    Text('Placa: ${vehicle.licensePlate}', overflow: TextOverflow.ellipsis),
-                    //Text('Conductor: ${vehicle.driverName}', overflow: TextOverflow.ellipsis),
-                    //Text('Color: ${vehicle.color}', overflow: TextOverflow.ellipsis),
-                  ],
+                  ),
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Color(0xFFFFA000),
+                minimumSize: const Size(double.infinity, 36),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
                 ),
               ),
-              const Icon(Icons.arrow_forward_ios, color: Colors.grey, size: 16),
-            ],
-          ),
+              child: const Text(
+                'Asignar',
+                style: TextStyle(color: Colors.white),
+              ),
+            ),
+          ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildDrawer() {
     return Drawer(
@@ -234,12 +266,12 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
               ],
             ),
           ),
-          _buildDrawerItem(Icons.person, 'PERFIL', ProfileScreen(name: widget.name, lastName: widget.lastName)),
+          _buildDrawerItem(Icons.person, 'PERFIL', ProfileScreen(name: widget.name, lastName: widget.lastName, userId: widget.userId)),
           _buildDrawerItem(Icons.people, 'TRANSPORTISTAS',
-              CarrierProfilesScreen(name: widget.name, lastName: widget.lastName)),
-          _buildDrawerItem(Icons.report, 'REPORTES', ReportsScreen(name: widget.name, lastName: widget.lastName)),
-          _buildDrawerItem(Icons.directions_car, 'VEHICULOS', VehiclesScreen(name: widget.name, lastName: widget.lastName)),
-          _buildDrawerItem(Icons.local_shipping, 'ENVIOS', ShipmentsScreen(name: widget.name, lastName: widget.lastName)),
+              CarrierProfilesScreen(name: widget.name, lastName: widget.lastName, userId: widget.userId)),
+          _buildDrawerItem(Icons.report, 'REPORTES', ReportsScreen(name: widget.name, lastName: widget.lastName, userId: widget.userId)),
+          _buildDrawerItem(Icons.directions_car, 'VEHICULOS', VehiclesScreen(name: widget.name, lastName: widget.lastName, userId: widget.userId)),
+          _buildDrawerItem(Icons.local_shipping, 'ENVIOS', ShipmentsScreen(name: widget.name, lastName: widget.lastName, userId: widget.userId)),
           const SizedBox(height: 160),
           ListTile(
             leading: const Icon(Icons.logout, color: Colors.white),

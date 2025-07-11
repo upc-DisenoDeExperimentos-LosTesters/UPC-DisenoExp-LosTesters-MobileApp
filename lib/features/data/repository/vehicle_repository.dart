@@ -24,35 +24,13 @@ class VehicleRepository {
       rethrow;
     }
   }
-/*
-  Future<Vehicle> createVehicle({
-    required String licensePlate,
-    required String model,
-    required String serialNumber,
-    required int ownerId,
-    required int carrierId,
-  }) async {
+
+  Future<List<VehicleModel>> getVehiclesByCarrierId(int carrierId) async {
     try {
-      return await _vehicleService.createNewVehicle(
-        licensePlate: licensePlate,
-        model: model,
-        serialNumber: serialNumber,
-        ownerId: ownerId,
-        carrierId: carrierId,
-      );
+      return await _vehicleService.getVehiclesByCarrierId(carrierId);
     } catch (e) {
-      print('Error en repository al crear vehículo: $e');
+      print('Error getting vehicles by carrier: $e');
       rethrow;
     }
   }
-
-  // Si necesitas el método que acepta objeto Vehicle
-  Future<Vehicle> createVehicleFromModel(Vehicle vehicle) async {
-    try {
-      return await _vehicleService.createVehicle(vehicle);
-    } catch (e) {
-      print('Error en repository al crear vehículo desde modelo: $e');
-      rethrow;
-    }
-  }*/
 }
